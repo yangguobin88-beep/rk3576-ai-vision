@@ -11,10 +11,10 @@ import numpy as np
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from .preprocess import preprocess_with_letterbox, restore_coords
-from .postprocess import yolov8_postprocess, get_class_name
-from .config import MODEL_INPUT_SIZE, OBJ_THRESH, NMS_THRESH
-from .logger import zlog
+from ..common.preprocess import preprocess_with_letterbox, restore_coords
+from ..common.postprocess import yolov8_postprocess, get_class_name
+from ..common.config import MODEL_INPUT_SIZE, OBJ_THRESH, NMS_THRESH
+from ..common.logger import zlog
 
 
 class BaseDetector(ABC):

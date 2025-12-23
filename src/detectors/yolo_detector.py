@@ -4,9 +4,9 @@ YOLOv8 检测器 - 继承 BaseRKNNModel
 import cv2
 import numpy as np
 from .base_model import BaseRKNNModel
-from .preprocess import preprocess_with_letterbox, restore_coords
-from .postprocess import yolov8_postprocess, get_class_name
-from .config import MODEL_INPUT_SIZE, OBJ_THRESH, NMS_THRESH
+from ..common.preprocess import preprocess_with_letterbox, restore_coords
+from ..common.postprocess import yolov8_postprocess, get_class_name
+from ..common.config import MODEL_INPUT_SIZE, OBJ_THRESH, NMS_THRESH
 
 
 class YOLOv8Detector(BaseRKNNModel):

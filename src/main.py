@@ -18,7 +18,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from common.detector import create_detector
+from detectors import create_detector
 from common.camera import Camera, FPSCounter
 from common.config import OBJ_THRESH, NMS_THRESH, CAMERA_WIDTH, CAMERA_HEIGHT
 from common.logger import zlog
