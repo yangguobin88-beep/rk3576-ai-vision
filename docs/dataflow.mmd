@@ -1,0 +1,47 @@
+flowchart TD
+    style Start fill:#222,color:#fff,stroke:#fff
+    style End fill:#222,color:#fff,stroke:#fff
+
+    Start([开始]) --> Input{输入源?}
+    
+    Input --Camera--> Cap[Camera: 多线程采集]
+    Input --Image--> Read[cv2.imread]
+    
+    Cap --> RawImg[原始图像 HxW BGR]
+    Read --> RawImg
+
+    subgraph Preprocess [预处理 preprocess.py]
+        direction TB
+        RawImg --> Letterbox[Letterbox: 等比缩放+黑边]
+        Letterbox --> Color[BGR -> RGB]
+        Color --> InputTensor[640x640 uint8 数据]
+    end
+
+    subgraph Inference [模型推理 detector.py]
+        direction TB
+        InputTensor --> Format{模型格式?}
+        Format --ONNX--> Trans[Transpose NCHW + Norm]
+        Trans --> RunONNX[onnxruntime 推理]
+        
+        Format --RKNN--> RunRKNN[NPU 零拷贝推理]
+        
+        RunONNX --> Outputs[模型输出 Outputs]
+        RunRKNN --> Outputs
+    end
+
+    subgraph Postprocess [后处理 postprocess.py]
+        direction TB
+        Outputs --> DFL[DFL 积分: 坐标解码]
+        DFL --> Filter[阈值过滤: Conf > 0.25]
+        Filter --> NMS[NMS 非极大抑制: IoU > 0.45]
+        NMS --> Boxes640[640尺度 检测框]
+    end
+
+    subgraph Restore [坐标还原]
+        Boxes640 --> Map["restore_coords: (x-pad)/scale"]
+        Map --> FinalBoxes[原图坐标 检测框]
+    end
+
+    FinalBoxes --> Draw[OpenCV 绘图 / 业务报警]
+    Draw --> Show[cv2.imshow / imwrite]
+    Show --> End([结束 / 下一帧])

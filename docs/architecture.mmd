@@ -1,0 +1,53 @@
+graph TD
+    classDef business fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef core fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef utils fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef hardware fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    subgraph Business_Layer [业务层 Code]
+        Main[main.py 主程序]:::business
+        Fall[FallDetector 跌倒检测]:::business
+        Cam[Camera 摄像头封装]:::business
+    end
+
+    subgraph Core_Layer [核心控制层]
+        Factory[create_detector 工厂]:::core
+        Base[BaseDetector 抽象基类]:::core
+        Config[config.py 全局配置]:::core
+        Logger[logger.py 日志系统]:::core
+    end
+
+    subgraph Inference_Layer [推理层]
+        ONNX[ONNXDetector]:::utils
+        RKNN[RKNNDetector]:::utils
+        YOLO[YOLOv8Detector]:::utils
+    end
+
+    subgraph Driver_Layer [驱动/硬件层]
+        LibONNX[onnxruntime]:::hardware
+        LibRKNN[rknn-lite2 / NPU]:::hardware
+        LibCam[OpenCV / V4L2]:::hardware
+        LibZLog[libzlog.so]:::hardware
+    end
+
+    Main --> Factory
+    Main --> Cam
+    Main --> Logger
+    Main --> Fall
+
+    Factory --> ONNX
+    Factory --> RKNN
+    Factory --> YOLO
+
+    ONNX --继承--> Base
+    RKNN --继承--> Base
+    YOLO --继承--> RKNN
+
+    Cam --> LibCam
+    Logger --> LibZLog
+    ONNX --> LibONNX
+    RKNN --> LibRKNN
+
+    Base -->|使用| Config
+    utils_pre[preprocess.py]:::utils -.-> Base
+    utils_post[postprocess.py]:::utils -.-> Base

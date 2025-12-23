@@ -1,0 +1,16 @@
+# RK3576 AI 视觉项目依赖
+
+# PC 端开发（必需）
+numpy>=1.20.0
+opencv-python>=4.5.0
+onnxruntime>=1.10.0
+
+# RKNN-Toolkit2（PC 端模型转换，在 WSL/Linux 安装）
+# 从官方仓库安装: https://github.com/airockchip/rknn-toolkit2
+# pip install rknn_toolkit2-x.x.x-cpxx-cpxx-linux_x86_64.whl
+
+# 板端运行时（仅 RK3576 板端）
+# rknnlite 从官方 SDK 安装
+
+# 可选：日志文件支持
+# colorama  # Windows 彩色输出支持

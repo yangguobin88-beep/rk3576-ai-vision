@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 模型文件（太大不提交）
+*.onnx
+*.rknn
+*.pt
+*.pth
+
+# 临时文件
+*.jpg
+*.png
+*.mp4
+result.*
+
+# rknn_model_zoo 是独立仓库，不提交
+rknn_model_zoo/
+
+# npm（如果用过 mermaid-cli）
+node_modules/
+package*.json
