@@ -47,7 +47,8 @@ class FallDetector:
             dy = head[1] - hip[1]
             angle = np.abs(np.arctan2(dx, -dy) * 180 / np.pi)
             return angle
-        except:
+        except (IndexError, KeyError, TypeError, ValueError) as e:
+            # 关键点数据不完整或格式错误，返回 0 角度
             return 0
     
     def reset(self):

@@ -31,11 +31,38 @@ class Camera:
         return self
     
     def _capture_loop(self):
+        """后台采集循环（带断线重连）"""
+        fail_count = 0
+        max_retries = 5
+        
         while self.running:
             ret, frame = self.cap.read()
+            
             if ret:
+                fail_count = 0  # 成功则重置计数
                 with self.lock:
                     self.frame = frame
+            else:
+                fail_count += 1
+                if fail_count >= max_retries:
+                    # 连续失败，尝试重连
+                    self._reconnect()
+                    fail_count = 0
+                else:
+                    time.sleep(0.1)  # 短暂等待后重试
+    
+    def _reconnect(self):
+        """重新连接摄像头"""
+        try:
+            if self.cap:
+                self.cap.release()
+            time.sleep(0.5)
+            self.cap = cv2.VideoCapture(self.source)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+            self.cap.set(cv2.CAP_PROP_FPS, self.fps)
+        except Exception:
+            time.sleep(1.0)  # 重连失败，等待后继续
     
     def start(self):
         if self.cap is None:
