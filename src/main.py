@@ -45,7 +45,7 @@ def draw_results(img, boxes, classes, scores, names):
 def run_image(args):
     """图片检测"""
     zlog.info(f"[图片模式] {args.image}")
-    
+
     img = cv2.imread(args.image)
     if img is None:
         zlog.error(f"无法读取图片: {args.image}")

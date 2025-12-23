@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 
 from .config import MODEL_INPUT_SIZE
 
 
 def preprocess(
-    img: np.ndarray, 
+    img: np.ndarray,
     target_size: Optional[tuple[int, int]] = None
 ) -> np.ndarray:
     """
@@ -38,8 +38,8 @@ def preprocess(
 
 
 def preprocess_with_letterbox(
-    img: np.ndarray, 
-    target_size: Optional[tuple[int, int]] = None, 
+    img: np.ndarray,
+    target_size: Optional[tuple[int, int]] = None,
     color: tuple[int, int, int] = (0, 0, 0)
 ) -> tuple[np.ndarray, float, tuple[int, int]]:
     """
@@ -75,8 +75,8 @@ def preprocess_with_letterbox(
 
 
 def restore_coords(
-    boxes: Optional[np.ndarray], 
-    scale: float, 
+    boxes: Optional[np.ndarray],
+    scale: float,
     pad: tuple[int, int]
 ) -> Optional[np.ndarray]:
     """

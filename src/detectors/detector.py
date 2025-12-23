@@ -9,7 +9,7 @@ import os
 import cv2
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Sequence
 
 from ..common.preprocess import preprocess_with_letterbox, restore_coords
 from ..common.postprocess import yolov8_postprocess, get_class_name
@@ -28,7 +28,7 @@ class BaseModelDetector(ABC):
         self._pad = (0, 0)
     
     @abstractmethod
-    def _inference(self, img_input):
+    def _inference(self, img_input: np.ndarray) -> Sequence[np.ndarray]:
         """子类实现：执行模型推理"""
         pass
     
