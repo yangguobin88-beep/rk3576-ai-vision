@@ -1,18 +1,25 @@
 """
 统一预处理模块 - PC/板端通用
 """
+from __future__ import annotations
+
 import cv2
 import numpy as np
+from typing import Optional
+
 from .config import MODEL_INPUT_SIZE
 
 
-def preprocess(img, target_size=None):
+def preprocess(
+    img: np.ndarray, 
+    target_size: Optional[tuple[int, int]] = None
+) -> np.ndarray:
     """
     统一预处理：BGR→RGB + resize
     
     Args:
-        img: OpenCV 读取的 BGR 图像
-        target_size: 目标尺寸，默认使用 config.MODEL_INPUT_SIZE
+        img: OpenCV 读取的 BGR 图像 (H, W, 3)
+        target_size: 目标尺寸 (width, height)，默认使用 config.MODEL_INPUT_SIZE
     
     Returns:
         处理后的 RGB 图像，uint8 格式
@@ -30,13 +37,17 @@ def preprocess(img, target_size=None):
     return img
 
 
-def preprocess_with_letterbox(img, target_size=None, color=(0, 0, 0)):
+def preprocess_with_letterbox(
+    img: np.ndarray, 
+    target_size: Optional[tuple[int, int]] = None, 
+    color: tuple[int, int, int] = (0, 0, 0)
+) -> tuple[np.ndarray, float, tuple[int, int]]:
     """
     带 letterbox 的预处理（保持宽高比）
     
     Args:
-        img: OpenCV 读取的 BGR 图像
-        target_size: 目标尺寸，默认使用 config.MODEL_INPUT_SIZE
+        img: OpenCV 读取的 BGR 图像 (H, W, 3)
+        target_size: 目标尺寸 (width, height)，默认使用 config.MODEL_INPUT_SIZE
         color: 填充颜色，默认黑色 (0,0,0)
     
     Returns:
@@ -63,7 +74,11 @@ def preprocess_with_letterbox(img, target_size=None, color=(0, 0, 0)):
     return img_padded, scale, (pad_x, pad_y)
 
 
-def restore_coords(boxes, scale, pad):
+def restore_coords(
+    boxes: Optional[np.ndarray], 
+    scale: float, 
+    pad: tuple[int, int]
+) -> Optional[np.ndarray]:
     """
     将 letterbox 坐标还原到原图坐标
     

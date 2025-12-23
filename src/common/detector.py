@@ -3,10 +3,13 @@
 
 自动识别模型格式，提供统一的 detect() 接口
 """
+from __future__ import annotations
+
 import os
 import cv2
 import numpy as np
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from .preprocess import preprocess_with_letterbox, restore_coords
 from .postprocess import yolov8_postprocess, get_class_name
@@ -34,12 +37,17 @@ class BaseDetector(ABC):
         """子类实现：释放资源"""
         pass
     
-    def detect(self, img):
+    def detect(self, img: np.ndarray) -> tuple[
+        np.ndarray | None, 
+        np.ndarray | None, 
+        np.ndarray | None, 
+        list[str] | None
+    ]:
         """
         统一检测接口
         
         Args:
-            img: BGR 图像
+            img: BGR 图像 (H, W, 3)
         
         Returns:
             boxes: 检测框 [[x1,y1,x2,y2], ...]（原图坐标）
@@ -143,7 +151,12 @@ class RKNNDetector(BaseDetector):
             self.rknn = None
 
 
-def create_detector(model_path, obj_thresh=None, nms_thresh=None, core_mask=None):
+def create_detector(
+    model_path: str, 
+    obj_thresh: Optional[float] = None, 
+    nms_thresh: Optional[float] = None, 
+    core_mask: Optional[int] = None
+) -> BaseDetector:
     """
     工厂函数：根据模型后缀自动创建对应的检测器
     
