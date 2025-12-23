@@ -17,7 +17,7 @@ from ..common.config import MODEL_INPUT_SIZE, OBJ_THRESH, NMS_THRESH
 from ..common.logger import zlog
 
 
-class BaseDetector(ABC):
+class BaseModelDetector(ABC):
     """检测器抽象基类"""
     
     def __init__(self, obj_thresh=None, nms_thresh=None):
@@ -81,7 +81,7 @@ class BaseDetector(ABC):
         self.release()
 
 
-class ONNXDetector(BaseDetector):
+class ONNXModelDetector(BaseModelDetector):
     """ONNX 模型检测器（PC 端开发用）"""
     
     def __init__(self, model_path, obj_thresh=None, nms_thresh=None):
@@ -106,7 +106,7 @@ class ONNXDetector(BaseDetector):
         self.session = None
 
 
-class RKNNDetector(BaseDetector):
+class RKNNModelDetector(BaseModelDetector):
     """RKNN 模型检测器（板端部署用）"""
     
     def __init__(self, model_path, obj_thresh=None, nms_thresh=None, core_mask=None):
@@ -151,12 +151,12 @@ class RKNNDetector(BaseDetector):
             self.rknn = None
 
 
-def create_detector(
+def create_model_detector(
     model_path: str, 
     obj_thresh: Optional[float] = None, 
     nms_thresh: Optional[float] = None, 
     core_mask: Optional[int] = None
-) -> BaseDetector:
+) -> BaseModelDetector:
     """
     工厂函数：根据模型后缀自动创建对应的检测器
     
@@ -167,13 +167,13 @@ def create_detector(
         core_mask: NPU 核心掩码（仅 RKNN 板端有效）
     
     Returns:
-        detector: ONNXDetector 或 RKNNDetector 实例
+        detector: ONNXModelDetector 或 RKNNModelDetector 实例
     """
     ext = os.path.splitext(model_path)[1].lower()
     
     if ext == '.onnx':
-        return ONNXDetector(model_path, obj_thresh, nms_thresh)
+        return ONNXModelDetector(model_path, obj_thresh, nms_thresh)
     elif ext == '.rknn':
-        return RKNNDetector(model_path, obj_thresh, nms_thresh, core_mask)
+        return RKNNModelDetector(model_path, obj_thresh, nms_thresh, core_mask)
     else:
         raise ValueError(f"不支持的模型格式: {ext}，支持 .onnx 和 .rknn")

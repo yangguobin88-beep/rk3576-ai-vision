@@ -18,7 +18,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from detectors import create_detector
+from detectors import create_model_detector
 from common.camera import Camera, FPSCounter
 from common.config import OBJ_THRESH, NMS_THRESH, CAMERA_WIDTH, CAMERA_HEIGHT
 from common.logger import zlog
@@ -52,7 +52,7 @@ def run_image(args):
         return
     
     # 创建检测器
-    detector = create_detector(args.model, args.conf, args.nms)
+    detector = create_model_detector(args.model, args.conf, args.nms)
     
     # 检测
     boxes, classes, scores, names = detector.detect(img)
@@ -85,7 +85,7 @@ def run_camera(args):
     zlog.info(f"[摄像头模式] 设备 {args.camera}")
     
     # 创建检测器和摄像头
-    detector = create_detector(args.model, args.conf, args.nms)
+    detector = create_model_detector(args.model, args.conf, args.nms)
     camera = Camera(args.camera, args.width, args.height)
     fps_counter = FPSCounter()
     

@@ -1,13 +1,13 @@
 """
-跌倒检测状态机
+跌倒判断器（业务逻辑层）
 """
 import numpy as np
 import time
 
 
-class FallDetector:
+class FallJudge:
     """
-    跌倒检测器 - 基于姿态关键点的状态机
+    跌倒判断器 - 基于姿态关键点的状态机
     核心逻辑：跌倒 = 关键点高度变化 + 身体主轴角度 + 持续时间
     """
     
@@ -18,7 +18,7 @@ class FallDetector:
         self.history = []
         self.last_fall_time = None
     
-    def detect(self, keypoints):
+    def judge(self, keypoints):
         if keypoints is None or len(keypoints) < 12:
             return False, 0
         
