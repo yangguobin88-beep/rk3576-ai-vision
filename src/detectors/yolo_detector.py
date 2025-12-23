@@ -9,7 +9,7 @@ from ..common.postprocess import yolov8_postprocess, get_class_name
 from ..common.config import MODEL_INPUT_SIZE, OBJ_THRESH, NMS_THRESH
 
 
-class YOLOv8Detector(BaseRKNNModel):
+class YOLOv8ModelDetector(BaseRKNNModel):
     """YOLOv8 目标检测器"""
     
     def __init__(self, model_path, core_mask=None, obj_thresh=None, nms_thresh=None):
