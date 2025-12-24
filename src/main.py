@@ -16,7 +16,6 @@ import argparse
 import sys
 import os
 import signal
-import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -60,6 +59,16 @@ def _cleanup():
         _global_detector = None
     
     cv2.destroyAllWindows()
+
+
+def _graceful_exit(code: int = 0):
+    """优雅退出（保证 cleanup 不会被异常打断）"""
+    try:
+        _cleanup()
+    except Exception:
+        zlog.exception("cleanup 过程中发生异常")
+    finally:
+        sys.exit(code)
 
 
 def _validate_args(args):
@@ -237,8 +246,9 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except Exception as e:
-        zlog.error(f"程序异常退出: {e}")
-        traceback.print_exc()
-        _cleanup()
-        sys.exit(1)
+    except KeyboardInterrupt:
+        zlog.info("用户主动退出 (Ctrl+C)")
+        _graceful_exit(0)
+    except Exception:
+        zlog.exception("程序异常退出")
+        _graceful_exit(1)
