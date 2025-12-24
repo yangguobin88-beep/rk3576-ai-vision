@@ -25,7 +25,7 @@ from common.config import OBJ_THRESH, NMS_THRESH, CAMERA_WIDTH, CAMERA_HEIGHT
 from common.logger import zlog
 
 # 版本号
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # 全局资源（用于优雅退出）
 _global_detector = None
@@ -34,14 +34,14 @@ _running = True
 
 
 def _signal_handler(sig, frame):
-    """处理 Ctrl+C 信号"""
+    """处理退出信号（只改状态，不直接退出）"""
     global _running
-    zlog.info("收到退出信号，正在清理资源...")
+    zlog.info(f"收到信号 {sig}，准备退出...")
     _running = False
 
 
 def _cleanup():
-    """清理全局资源"""
+    """清理全局资源（唯一的资源回收入口）"""
     global _global_detector, _global_camera
     
     if _global_camera is not None:
@@ -58,16 +58,20 @@ def _cleanup():
             pass
         _global_detector = None
     
-    cv2.destroyAllWindows()
+    try:
+        cv2.destroyAllWindows()
+    except Exception:
+        pass
 
 
 def _graceful_exit(code: int = 0):
-    """优雅退出（保证 cleanup 不会被异常打断）"""
+    """优雅退出（唯一的退出入口）"""
     try:
         _cleanup()
     except Exception:
         zlog.exception("cleanup 过程中发生异常")
     finally:
+        zlog.info("程序退出")
         sys.exit(code)
 
 
@@ -112,7 +116,7 @@ def draw_results(img, boxes, classes, scores, names):
 
 
 def run_image(args):
-    """图片检测"""
+    """图片检测（不负责 cleanup，由 _graceful_exit 统一处理）"""
     global _global_detector
     
     zlog.info(f"[图片模式] {args.image}")
@@ -122,93 +126,76 @@ def run_image(args):
         zlog.error(f"无法读取图片: {args.image}")
         return
     
-    try:
-        # 创建检测器
-        _global_detector = create_model_detector(args.model, args.conf, args.nms)
-        
-        # 检测
-        boxes, classes, scores, names = _global_detector.detect(img)
-        
-        # 打印结果
-        if boxes is not None:
-            zlog.info(f"检测到 {len(boxes)} 个目标")
-            for name, score in zip(names, scores):
-                zlog.info(f"  {name}: {score:.2f}")
-        else:
-            zlog.info("未检测到目标")
-        
-        # 绘制并保存
-        result = draw_results(img, boxes, classes, scores, names)
-        output = args.output if args.output else "result.jpg"
-        cv2.imwrite(output, result)
-        zlog.info(f"结果保存: {output}")
-        
-        # 显示
-        if args.show:
-            cv2.imshow("Result", result)
-            cv2.waitKey(0)
+    # 创建检测器
+    _global_detector = create_model_detector(args.model, args.conf, args.nms)
     
-    except Exception as e:
-        zlog.error(f"图片检测异常: {e}")
-        traceback.print_exc()
+    # 检测
+    boxes, classes, scores, names = _global_detector.detect(img)
     
-    finally:
-        _cleanup()
+    # 打印结果
+    if boxes is not None:
+        zlog.info(f"检测到 {len(boxes)} 个目标")
+        for name, score in zip(names, scores):
+            zlog.info(f"  {name}: {score:.2f}")
+    else:
+        zlog.info("未检测到目标")
+    
+    # 绘制并保存
+    result = draw_results(img, boxes, classes, scores, names)
+    output = args.output if args.output else "result.jpg"
+    cv2.imwrite(output, result)
+    zlog.info(f"结果保存: {output}")
+    
+    # 显示
+    if args.show:
+        cv2.imshow("Result", result)
+        cv2.waitKey(0)
 
 
 def run_camera(args):
-    """摄像头检测"""
+    """摄像头检测（不负责 cleanup，由 _graceful_exit 统一处理）"""
     global _global_detector, _global_camera, _running
     
     zlog.info(f"[摄像头模式] 设备 {args.camera}")
     
-    try:
-        # 创建检测器和摄像头
-        _global_detector = create_model_detector(args.model, args.conf, args.nms)
-        _global_camera = Camera(args.camera, args.width, args.height)
-        fps_counter = FPSCounter()
-        
-        zlog.info("按 'q' 或 Ctrl+C 退出")
-        
-        _global_camera.start()
-        
-        while _running:
-            frame = _global_camera.read()
-            if frame is None:
-                continue
-            
-            try:
-                # 检测（单帧异常不中断）
-                boxes, classes, scores, names = _global_detector.detect(frame)
-                
-                # 绘制
-                frame = draw_results(frame, boxes, classes, scores, names)
-            except Exception as e:
-                zlog.warn(f"单帧推理异常，跳过: {e}")
-                continue
-            
-            # FPS
-            fps_counter.tick()
-            fps = fps_counter.get_fps()
-            count = len(boxes) if boxes is not None else 0
-            cv2.putText(frame, f"FPS: {fps:.1f} | Objects: {count}", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-            
-            cv2.imshow('RK3576 AI Demo', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+    # 创建检测器和摄像头
+    _global_detector = create_model_detector(args.model, args.conf, args.nms)
+    _global_camera = Camera(args.camera, args.width, args.height)
+    fps_counter = FPSCounter()
     
-    except Exception as e:
-        zlog.error(f"摄像头检测异常: {e}")
-        traceback.print_exc()
+    zlog.info("按 'q' 或 Ctrl+C 退出")
     
-    finally:
-        _cleanup()
-        zlog.info("程序退出")
+    _global_camera.start()
+    
+    while _running:
+        frame = _global_camera.read()
+        if frame is None:
+            continue
+        
+        try:
+            # 检测（单帧异常不中断）
+            boxes, classes, scores, names = _global_detector.detect(frame)
+            
+            # 绘制
+            frame = draw_results(frame, boxes, classes, scores, names)
+        except Exception as e:
+            zlog.warn(f"单帧推理异常，跳过: {e}")
+            continue
+        
+        # FPS
+        fps_counter.tick()
+        fps = fps_counter.get_fps()
+        count = len(boxes) if boxes is not None else 0
+        cv2.putText(frame, f"FPS: {fps:.1f} | Objects: {count}", (10, 30),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        
+        cv2.imshow('RK3576 AI Demo', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            _running = False  # 统一用状态控制退出
 
 
 def main():
-    # 注册信号处理
+    # 注册信号处理（只改状态，不直接退出）
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
     
@@ -246,6 +233,7 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+        _graceful_exit(0)  # 正常结束也走统一出口
     except KeyboardInterrupt:
         zlog.info("用户主动退出 (Ctrl+C)")
         _graceful_exit(0)
