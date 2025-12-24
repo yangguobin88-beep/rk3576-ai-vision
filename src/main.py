@@ -15,6 +15,8 @@ import cv2
 import argparse
 import sys
 import os
+import signal
+import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -22,6 +24,64 @@ from detectors import create_model_detector
 from common.camera import Camera, FPSCounter
 from common.config import OBJ_THRESH, NMS_THRESH, CAMERA_WIDTH, CAMERA_HEIGHT
 from common.logger import zlog
+
+# 版本号
+__version__ = "1.0.0"
+
+# 全局资源（用于优雅退出）
+_global_detector = None
+_global_camera = None
+_running = True
+
+
+def _signal_handler(sig, frame):
+    """处理 Ctrl+C 信号"""
+    global _running
+    zlog.info("收到退出信号，正在清理资源...")
+    _running = False
+
+
+def _cleanup():
+    """清理全局资源"""
+    global _global_detector, _global_camera
+    
+    if _global_camera is not None:
+        try:
+            _global_camera.release()
+        except Exception:
+            pass
+        _global_camera = None
+    
+    if _global_detector is not None:
+        try:
+            _global_detector.release()
+        except Exception:
+            pass
+        _global_detector = None
+    
+    cv2.destroyAllWindows()
+
+
+def _validate_args(args):
+    """验证启动参数"""
+    # 检查模型文件
+    if not os.path.exists(args.model):
+        zlog.error(f"模型文件不存在: {args.model}")
+        return False
+    
+    # 检查图片文件
+    if args.image and not os.path.exists(args.image):
+        zlog.error(f"图片文件不存在: {args.image}")
+        return False
+    
+    # 检查阈值范围
+    if not (0 < args.conf < 1):
+        zlog.warn(f"置信度阈值异常: {args.conf}，建议范围 (0, 1)")
+    
+    if not (0 < args.nms < 1):
+        zlog.warn(f"NMS 阈值异常: {args.nms}，建议范围 (0, 1)")
+    
+    return True
 
 
 def draw_results(img, boxes, classes, scores, names):
@@ -44,6 +104,8 @@ def draw_results(img, boxes, classes, scores, names):
 
 def run_image(args):
     """图片检测"""
+    global _global_detector
+    
     zlog.info(f"[图片模式] {args.image}")
 
     img = cv2.imread(args.image)
@@ -51,59 +113,70 @@ def run_image(args):
         zlog.error(f"无法读取图片: {args.image}")
         return
     
-    # 创建检测器
-    detector = create_model_detector(args.model, args.conf, args.nms)
+    try:
+        # 创建检测器
+        _global_detector = create_model_detector(args.model, args.conf, args.nms)
+        
+        # 检测
+        boxes, classes, scores, names = _global_detector.detect(img)
+        
+        # 打印结果
+        if boxes is not None:
+            zlog.info(f"检测到 {len(boxes)} 个目标")
+            for name, score in zip(names, scores):
+                zlog.info(f"  {name}: {score:.2f}")
+        else:
+            zlog.info("未检测到目标")
+        
+        # 绘制并保存
+        result = draw_results(img, boxes, classes, scores, names)
+        output = args.output if args.output else "result.jpg"
+        cv2.imwrite(output, result)
+        zlog.info(f"结果保存: {output}")
+        
+        # 显示
+        if args.show:
+            cv2.imshow("Result", result)
+            cv2.waitKey(0)
     
-    # 检测
-    boxes, classes, scores, names = detector.detect(img)
+    except Exception as e:
+        zlog.error(f"图片检测异常: {e}")
+        traceback.print_exc()
     
-    # 打印结果
-    if boxes is not None:
-        zlog.info(f"检测到 {len(boxes)} 个目标")
-        for name, score in zip(names, scores):
-            zlog.info(f"  {name}: {score:.2f}")
-    else:
-        zlog.info("未检测到目标")
-    
-    # 绘制并保存
-    result = draw_results(img, boxes, classes, scores, names)
-    output = args.output if args.output else "result.jpg"
-    cv2.imwrite(output, result)
-    zlog.info(f"结果保存: {output}")
-    
-    # 显示
-    if args.show:
-        cv2.imshow("Result", result)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-    
-    detector.release()
+    finally:
+        _cleanup()
 
 
 def run_camera(args):
     """摄像头检测"""
+    global _global_detector, _global_camera, _running
+    
     zlog.info(f"[摄像头模式] 设备 {args.camera}")
     
-    # 创建检测器和摄像头
-    detector = create_model_detector(args.model, args.conf, args.nms)
-    camera = Camera(args.camera, args.width, args.height)
-    fps_counter = FPSCounter()
-    
-    zlog.info("按 'q' 退出")
-    
     try:
-        camera.start()
+        # 创建检测器和摄像头
+        _global_detector = create_model_detector(args.model, args.conf, args.nms)
+        _global_camera = Camera(args.camera, args.width, args.height)
+        fps_counter = FPSCounter()
         
-        while True:
-            frame = camera.read()
+        zlog.info("按 'q' 或 Ctrl+C 退出")
+        
+        _global_camera.start()
+        
+        while _running:
+            frame = _global_camera.read()
             if frame is None:
                 continue
             
-            # 检测
-            boxes, classes, scores, names = detector.detect(frame)
-            
-            # 绘制
-            frame = draw_results(frame, boxes, classes, scores, names)
+            try:
+                # 检测（单帧异常不中断）
+                boxes, classes, scores, names = _global_detector.detect(frame)
+                
+                # 绘制
+                frame = draw_results(frame, boxes, classes, scores, names)
+            except Exception as e:
+                zlog.warn(f"单帧推理异常，跳过: {e}")
+                continue
             
             # FPS
             fps_counter.tick()
@@ -116,14 +189,20 @@ def run_camera(args):
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
     
+    except Exception as e:
+        zlog.error(f"摄像头检测异常: {e}")
+        traceback.print_exc()
+    
     finally:
-        camera.release()
-        detector.release()
-        cv2.destroyAllWindows()
+        _cleanup()
         zlog.info("程序退出")
 
 
 def main():
+    # 注册信号处理
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+    
     parser = argparse.ArgumentParser(description='RK3576 AI 视觉演示')
     parser.add_argument('--image', type=str, help='图片路径')
     parser.add_argument('--camera', type=int, help='摄像头设备号')
@@ -134,13 +213,18 @@ def main():
     parser.add_argument('--height', type=int, default=CAMERA_HEIGHT)
     parser.add_argument('--output', type=str, help='输出路径')
     parser.add_argument('--show', action='store_true', help='显示窗口')
+    parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     
     args = parser.parse_args()
     
     zlog.info("=" * 40)
-    zlog.info("RK3576 AI 视觉演示")
+    zlog.info(f"RK3576 AI 视觉演示 v{__version__}")
     zlog.info(f"模型: {args.model}")
     zlog.info("=" * 40)
+    
+    # 参数验证
+    if not _validate_args(args):
+        return
     
     if args.image:
         run_image(args)
@@ -151,4 +235,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        zlog.error(f"程序异常退出: {e}")
+        traceback.print_exc()
+        _cleanup()
+        sys.exit(1)
